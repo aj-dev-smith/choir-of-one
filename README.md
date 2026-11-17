@@ -18,7 +18,7 @@ through anyway, because your brain fills them in.
   and the rest each get a choir of their own. It fetches the splitter (Demucs, about 2 GB) the first time.
 
 ```sh
-git clone <this repository> && cd choir-of-one
+git clone https://github.com/aj-dev-smith/choir-of-one && cd choir-of-one
 bun install
 bun run doctor     # says what is missing and how to get it
 ```
