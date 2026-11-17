@@ -1,0 +1,22 @@
+{
+  "name": "choir-of-one",
+  "version": "0.1.0",
+  "description": "Record yourself singing and whistling every note you can reach, then play any song with nothing but those clips.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "bun server.ts",
+    "make": "bun cli/make.ts",
+    "test": "bun test tests",
+    "typecheck": "tsc --noEmit",
+    "doctor": "bun cli/doctor.ts",
+    "e2e": "bun tests/e2e.ts"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "typescript": "7.0.2"
+  }
+}

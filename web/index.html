@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en" style="background: #17151a; color-scheme: dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Choir of one</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23ffb84d'/%3E%3C/svg%3E" />
+    <style>
+      /* the colours and face come from web/look.ts, set on :root by main.ts */
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body { margin: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font: 16px/1.5 var(--face); }
+      button, input { font: inherit; color: inherit; }
+      [hidden] { display: none !important; }
+
+      header { display: flex; align-items: center; gap: 24px; padding: 10px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+      .brand { font-weight: 700; font-size: 18px; letter-spacing: 0.01em; }
+      .brand .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--now); margin-right: 8px; }
+      .brand small { font-weight: 500; color: var(--dim); margin-left: 8px; font-size: 14px; }
+      nav { display: flex; gap: 6px; }
+      nav button { background: none; border: 1px solid transparent; border-radius: 999px; padding: 6px 14px; color: var(--soft); cursor: pointer; }
+      nav button b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line); font-size: 12px; margin-right: 6px; }
+      nav button:hover { border-color: var(--line); }
+      nav button[aria-current="step"] { color: var(--text); border-color: var(--line); background: var(--panel); }
+      nav button[aria-current="step"] b { background: var(--now); border-color: var(--now); color: var(--bg); }
+
+      main { flex: 1; min-height: 0; overflow: auto; }
+      #record { height: 100%; display: flex; flex-direction: column; }
+      #record canvas { flex: 1; min-height: 0; width: 100%; object-fit: contain; display: block; }
+
+      /* the buttons under the recorder: each says its key */
+      .keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 8px 16px 16px; min-height: 62px; }
+      button.k, .keys button, .actions button { display: inline-flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+      .keys button:hover, .actions button:hover:not(:disabled) { border-color: var(--dim); }
+      .keys button.main, .actions button.main { background: var(--now); border-color: var(--now); color: var(--bg); font-weight: 650; }
+      .keys button.main:hover, .actions button.main:hover:not(:disabled) { filter: brightness(1.08); }
+      .keys kbd { font: 600 12px var(--face); padding: 1px 6px; border-radius: 5px; border: 1px solid currentColor; opacity: 0.7; white-space: nowrap; }
+      .actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+      .page { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+      .page h1 { font-size: 30px; margin: 0 0 4px; }
+      .lead { color: var(--soft); margin: 0 0 24px; }
+      .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 4px; min-height: 140px; padding: 20px; border: 2px dashed var(--line); border-radius: 14px; background: var(--panel); cursor: pointer; transition: border-color 0.15s; }
+      .drop:hover, .drop.over { border-color: var(--now); }
+      .drop input { display: none; }
+      .drop-main { font-weight: 650; font-size: 18px; }
+      .drop-sub { color: var(--dim); font-size: 14px; }
+      .drop.has .drop-main { color: var(--good); }
+      .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; margin: 24px 0; }
+      .fields .wide { grid-column: 1 / -1; }
+      .fields label { display: flex; flex-direction: column; gap: 6px; color: var(--soft); font-size: 14px; }
+      .fields input { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: 16px; }
+      .fields input:focus { outline: none; border-color: var(--now); }
+      .opt { color: var(--faint); }
+      .check { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 2px; cursor: pointer; }
+      .check input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--now); flex: none; }
+      .check.off { color: var(--faint); cursor: not-allowed; }
+      .hint { color: var(--dim); font-size: 14px; margin: 2px 0 0 28px; }
+      .hint code { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; font-size: 13px; }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+
+      .summary { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 20px 0 0; }
+      .summary dt { color: var(--dim); }
+      .summary dd { margin: 0; }
+      .summary .missing { color: var(--bad); }
+      .progress { margin-top: 28px; }
+      .progress .step { font-weight: 650; text-transform: capitalize; }
+      .progress .meter { height: 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; margin: 8px 0; }
+      .progress .meter i { display: block; height: 100%; width: 0; background: var(--now); transition: width 0.2s; }
+      .progress .meter.unknown i { width: 30%; animation: slide 1.2s ease-in-out infinite alternate; }
+      @keyframes slide { from { margin-left: 0; } to { margin-left: 70%; } }
+      .progress .detail { color: var(--soft); font-size: 14px; }
+      .error { margin-top: 24px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--bad); color: var(--bad); background: var(--badWash); white-space: pre-wrap; }
+      .film { margin-top: 28px; }
+      .film video { width: 100%; border-radius: 12px; background: #000; display: block; }
+      .film a { display: inline-block; margin-top: 12px; color: var(--now); font-weight: 650; }
+      .film ul { color: var(--soft); padding-left: 20px; }
+      .status { color: var(--dim); font-size: 14px; margin-top: 8px; min-height: 21px; }
+
+      @media (max-width: 600px) {
+        .fields { grid-template-columns: 1fr; }
+        header { gap: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand"><span class="dot"></span>Choir of one<small id="project"></small></div>
+      <nav>
+        <button type="button" data-step="record"><b>1</b>Record</button>
+        <button type="button" data-step="song"><b>2</b>Song</button>
+        <button type="button" data-step="make"><b>3</b>Make</button>
+      </nav>
+    </header>
+    <main>
+      <section id="record" hidden></section>
+
+      <section id="song" class="page" hidden>
+        <h1>Give it a song</h1>
+        <p class="lead">Any audio file will do. The film rebuilds a stretch of it using only your notes.</p>
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus" />
+          <span class="drop-main" id="drop-main">Drop a song here, or click to choose one</span>
+          <span class="drop-sub" id="drop-sub">mp3, wav, m4a, or anything else that plays</span>
+        </label>
+        <div class="fields">
+          <label class="wide">Title<input id="title" type="text" autocomplete="off" /></label>
+          <label class="wide"><span>Credit line <span class="opt">(optional, shown at the end)</span></span><input id="credit" type="text" autocomplete="off" placeholder="&quot;Song&quot; by Artist" /></label>
+          <label>Start at (seconds)<input id="start" type="number" min="0" step="0.5" value="0" /></label>
+          <label>Length (seconds)<input id="length" type="number" min="1" step="1" value="90" /></label>
+        </div>
+        <label class="check" id="stems-row"><input type="checkbox" id="stems" /><span>Split the song into instruments (slower, better)</span></label>
+        <p class="hint" id="stems-hint" hidden>Not available here: put <code>uv</code> or <code>demucs</code> on the PATH and restart the app.</p>
+        <label class="check"><input type="checkbox" id="reach" /><span>Also play notes I couldn't reach, pitch-shifted from my nearest take</span></label>
+        <div class="actions"><button type="button" class="main" id="to-make">Next: make the film</button></div>
+      </section>
+
+      <section id="make" class="page" hidden>
+        <h1>Make the film</h1>
+        <p class="lead">A wall of your face, one tile per note, singing the song.</p>
+        <dl class="summary" id="summary"></dl>
+        <div class="actions">
+          <button type="button" class="main" id="go">Make the film</button>
+          <button type="button" id="more">Record more notes</button>
+          <button type="button" id="change-song">Change the song</button>
+        </div>
+        <div class="status" id="why"></div>
+        <div class="progress" id="progress" hidden>
+          <div class="step" id="p-step"></div>
+          <div class="meter" id="p-meter"><i id="p-bar"></i></div>
+          <div class="detail" id="p-detail"></div>
+        </div>
+        <div class="error" id="error" role="alert" hidden></div>
+        <div class="film" id="film" hidden>
+          <video id="video" controls playsinline preload="metadata"></video>
+          <a id="download" download>Download the film</a>
+          <ul id="notes"></ul>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
