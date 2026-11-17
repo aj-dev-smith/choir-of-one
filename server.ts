@@ -8,6 +8,7 @@
 import { copyFile, mkdir, readdir, rename, stat, unlink } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 import { make, stemsAvailable, type MakeOptions, type Progress } from "./src/make.ts";
+import { checkScript, defaultScript, readScript, writeScript } from "./src/script.ts";
 import type { JobView, MakeRequest, ProjectView, TakesFile } from "./web/api.ts";
 
 const ROOT = import.meta.dir;
@@ -308,6 +309,41 @@ async function handle(req: Request): Promise<Response> {
       return fail(400, "send JSON");
     }
     return start(name, dir, body ?? ({} as MakeRequest));
+  }
+
+  if (rest === "script") {
+    // the words on the film and its two colours; readScript writes the defaults the first time
+    const said = (err: unknown) => (err instanceof Error ? err.message : String(err));
+    if (method === "GET") {
+      await mkdir(dir, { recursive: true });
+      // a script.json broken by hand is the person's to fix (or to reset): say what is wrong with it
+      return readScript(dir).then((s) => json(s), (err) => fail(422, said(err)));
+    }
+    if (method === "PUT") {
+      const text = await req.text();
+      if (text.length > 64_000) return fail(413, "the script is too big");
+      let raw: unknown;
+      try {
+        raw = JSON.parse(text);
+      } catch {
+        return fail(400, "the script must be JSON");
+      }
+      let script;
+      try {
+        script = checkScript(raw);
+      } catch (err) {
+        return fail(400, said(err));
+      }
+      await mkdir(dir, { recursive: true });
+      await writeScript(dir, script);
+      return json(script);
+    }
+    if (method === "DELETE") {
+      await mkdir(dir, { recursive: true });
+      await writeScript(dir, defaultScript());
+      return json(defaultScript());
+    }
+    return fail(405, "GET, PUT or DELETE");
   }
 
   if (rest === "film.mp4" && method === "GET") return sendFile(req, join(dir, "film.mp4"), "video/mp4");

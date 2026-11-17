@@ -16,6 +16,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright-core";
+import { defaultScript } from "../src/script.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const PORT = 4100 + Math.floor(Math.random() * 800);
@@ -152,6 +153,52 @@ try {
   await page.click(`nav button[data-step="song"]`);
   const splits = ((await (await fetch(`${BASE}/api/projects/${PROJECT}`)).json()) as { stems: boolean }).stems;
   await page.waitForFunction(`document.getElementById("stems").disabled === ${!splits}`, null, { timeout: 5000 });
+
+  // ---- the words and look: saved as typed, read back after a reload, reset, and a bad one refused
+  const scriptUrl = `${BASE}/api/projects/${PROJECT}/script`, scriptFile = join(DIR, "script.json");
+  const onDisk = async () => (await Bun.file(scriptFile).json()) as ReturnType<typeof defaultScript>;
+  // opening.ids isn't in the panel, but whatever it holds must survive the panel's saves
+  const seeded = await fetch(scriptUrl, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ opening: { takes: 1, ids: ["sung-50"] } }) });
+  check("a script can be put by hand", seeded.status === 200, String(seeded.status));
+  await page.reload();
+  await page.waitForFunction(`!document.getElementById("song").hidden`);
+  check("the panel starts closed", !(await page.isVisible(`[data-key="captions.start"]`)));
+  await page.click("#script summary");
+  const field = (key: string) => `#script-fields [data-key="${key}"]`;
+  await page.waitForFunction(`!document.querySelector('${field("captions.start")}').disabled`, null, { timeout: 5000 });
+  check("the panel shows the script", (await page.inputValue(field("opening.takes"))) === "1" && (await page.inputValue(field("captions.start"))) === defaultScript().captions.start);
+  check("lines under takes not shown are greyed", await page.isDisabled(field("opening.lines.1")));
+  await page.fill(field("captions.start"), "Every square here is one held note.");
+  await page.press(field("captions.start"), "Tab");
+  await page.fill(field("accent"), "#3fa7ff");
+  await page.waitForFunction(`document.getElementById("script-status").textContent === "Saved"`, null, { timeout: 5000 });
+  let saved = await onDisk();
+  check("the caption and colour are in script.json", saved.captions.start === "Every square here is one held note." && saved.accent === "#3fa7ff", JSON.stringify({ start: saved.captions.start, accent: saved.accent }));
+  check("opening.ids is kept", JSON.stringify(saved.opening.ids) === `["sung-50"]`, JSON.stringify(saved.opening));
+  check("unchanged lines stay as they were", JSON.stringify(saved.title) === JSON.stringify(defaultScript().title) && JSON.stringify(saved.end) === JSON.stringify(defaultScript().end));
+  // the page scrolls inside itself, so a tall window shows the whole panel
+  await page.setViewportSize({ width: 1280, height: 2300 });
+  await shot(page, "2-words-open.png");
+  await page.setViewportSize({ width: 390, height: 3200 });
+  await shot(page, "2-words-narrow.png");
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.reload();
+  await page.waitForFunction(`!document.getElementById("song").hidden`);
+  await page.click("#script summary");
+  await page.waitForFunction(`document.querySelector('${field("captions.start")}').value === "Every square here is one held note."`, null, { timeout: 5000 });
+  check("after a reload the fields show what was saved", (await page.inputValue(field("accent"))) === "#3fa7ff");
+  await page.click("#script-reset");
+  await page.click("#script-reset");
+  await page.waitForFunction(`document.getElementById("script-status").textContent === "Back to the defaults"`, null, { timeout: 5000 });
+  saved = await onDisk();
+  check("Back to the defaults writes the defaults", JSON.stringify(saved) === JSON.stringify(defaultScript()), JSON.stringify(saved));
+  check("and the fields show them", (await page.inputValue(field("captions.start"))) === defaultScript().captions.start && (await page.inputValue(field("accent"))) === defaultScript().accent);
+  const bad = await fetch(scriptUrl, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ accent: "red" }) });
+  const badSays = ((await bad.json()) as { error?: string }).error ?? "";
+  check("a bad script is refused with the reason", bad.status === 400 && badSays.includes("accent must be a colour"), `${bad.status} ${badSays}`);
+  check("and the file is untouched", JSON.stringify(await onDisk()) === JSON.stringify(defaultScript()));
+  const foreignPut = await fetch(scriptUrl, { method: "PUT", headers: { "content-type": "application/json", origin: "http://elsewhere.example" }, body: "{}" });
+  check("another site's page can't change the script", foreignPut.status === 403, String(foreignPut.status));
 
   // ---- 3. make: the pipeline refuses a 5 s song, and the page says why
   await page.click("#to-make");

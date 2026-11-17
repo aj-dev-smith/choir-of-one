@@ -1,7 +1,7 @@
 /**
  * The shape of the film, worked out from the song: the voices come in one after another at the start;
  * where there are instruments, each is heard alone for a bar; there is a stretch where the notes are
- * shown falling onto a keyboard; and the words on screen say what is going on.
+ * shown falling onto a keyboard; and there are moments set aside for words on screen.
  */
 import { rms } from "./audio.ts";
 import type { Note } from "./transcribe.ts";
@@ -15,6 +15,8 @@ export interface Part {
   fs: number;
 }
 
+export type Caption = "start" | "words" | "band" | "keys" | "after";
+
 export interface Arrangement {
   /** each part's notes, with the ones before its voice has come in taken out */
   notes: Note[][];
@@ -26,7 +28,8 @@ export interface Arrangement {
   looks: [number, number][];
   /** [start, end]: the wall unfolds into a keyboard and the notes fall onto it */
   keys: [number, number][];
-  captions: [number, number, string][];
+  /** [start, end, which]: when each of the script's captions would show (see script.ts) */
+  captions: [number, number, Caption][];
   /** the beat found (s), for anyone curious; 0 if none was looked for */
   beat: number;
 }
@@ -55,7 +58,7 @@ export function beatOf(x: Float32Array, fs: number): { beat: number; phase: numb
   return { beat: best.beat, phase: best.phase };
 }
 
-export function arrange(parts: Part[], length: number, people: { captions: boolean }): Arrangement {
+export function arrange(parts: Part[], length: number): Arrangement {
   const split = parts.length > 1, singers = Math.max(0, parts.findIndex((p) => p.name === "vocals"));
 
   // ---- the voices come in one after another: the strongest of the opening first (the singers before the
@@ -108,15 +111,13 @@ export function arrange(parts: Part[], length: number, people: { captions: boole
   if (afterSolos + 2.5 + 7 < mid - 1.5) looks.push([afterSolos + 2.5, afterSolos + 9.5]);
   if (keys.length && keys[0][1] + 4 + 7 < length - 3) looks.push([keys[0][1] + 4, keys[0][1] + 11]);
 
-  const captions: [number, number, string][] = [];
-  if (people.captions) {
-    captions.push([0.4, Math.min(4.6, joining * 0.45), "NOW THE SONG. EVERY ONE OF ME HOLDS A SINGLE NOTE."]);
-    captions.push([Math.min(5.2, joining * 0.52), Math.min(11, joining * 1.1), "NOBODY IS SINGING WORDS.\nYOUR BRAIN IS FILLING THEM IN."]);
-    if (solos.length) captions.push([solos[0][0] - 3.6, solos[0][0] - 0.2, "THE DRUMS, THE BASS AND EVERYTHING ELSE ARE ALSO ME."]);
-    for (const [a, b] of keys) {
-      captions.push([a + 1.4, a + 7, split ? "EVERY NOTE AS IT IS SUNG. A COLOUR FOR EACH INSTRUMENT." : "EVERY NOTE AS IT IS SUNG."]);
-      if (b + 7 < length - 2) captions.push([b + 1.5, b + 7, "NO SONG IS PLAYING. ONLY THESE NOTES."]);
-    }
+  const captions: [number, number, Caption][] = [];
+  captions.push([0.4, Math.min(4.6, joining * 0.45), "start"]);
+  captions.push([Math.min(5.2, joining * 0.52), Math.min(11, joining * 1.1), "words"]);
+  if (solos.length) captions.push([solos[0][0] - 3.6, solos[0][0] - 0.2, "band"]);
+  for (const [a, b] of keys) {
+    captions.push([a + 1.4, a + 7, "keys"]);
+    if (b + 7 < length - 2) captions.push([b + 1.5, b + 7, "after"]);
   }
   return { notes, joining, solos, looks, keys, captions, beat };
 }

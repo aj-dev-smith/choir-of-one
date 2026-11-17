@@ -9,6 +9,7 @@
  *
  * It reads data/wall.json, written by src/make.ts:
  *   width, height   the picture
+ *   look            { background, accent }: "#rrggbb" each; the lettering is dark on a light background
  *   title           { hold, lines }: the first frames (what a feed shows before it plays), the wall at rest behind
  *   cold            [{ sheet, cols, frames, len, name, hz, kind, text }]: before the song, takes shown
  *                   whole and as they were recorded, one after another, `gap` apart
@@ -41,6 +42,7 @@ interface Cold {
 interface Wall {
   width: number;
   height: number;
+  look: { background: string; accent: string };
   title: { hold: number; lines: string[] };
   cold: Cold[];
   gap: number;
@@ -126,15 +128,20 @@ export async function wall(root: HTMLElement): Promise<void> {
   canvas.id = "film";
   canvas.width = W;
   canvas.height = H;
-  canvas.style.cssText = "display:block;background:#000";
+  // the colours: what the wall stands on, and lettering that can be read on it
+  const BG = cfg.look.background, rgb = [1, 3, 5].map((i) => parseInt(BG.slice(i, i + 2), 16));
+  const light = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] > 140;
+  const INK = light ? "#15130f" : "#ffffff", SOFT = light ? "rgba(21,19,15,0.7)" : "rgba(255,255,255,0.7)";
+  const veil = (alpha: number) => `rgba(${rgb.join(",")},${alpha})`;
+  canvas.style.cssText = `display:block;background:${BG}`;
   root.replaceChildren(canvas);
-  document.body.style.cssText = "margin:0;background:#000;overflow:hidden";
+  document.body.style.cssText = `margin:0;background:${BG};overflow:hidden`;
   const ctx = canvas.getContext("2d")!;
 
   function lines(text: string[], sizes: number[], y: number, color: string, band = 0.8) {
     const high = sizes.slice(0, text.length).reduce((a, b) => a + b * 1.5, 0);
     if (band > 0) {
-      ctx.fillStyle = `rgba(0,0,0,${band})`;
+      ctx.fillStyle = veil(band);
       ctx.fillRect(0, y - high / 2 - 20, W, high + 40);
     }
     ctx.textAlign = "center";
@@ -246,7 +253,7 @@ export async function wall(root: HTMLElement): Promise<void> {
     ctx.font = font(20);
     let x = MX;
     for (const s of cfg.sections) {
-      const name = (s.label ?? s.name).toUpperCase();
+      const name = s.label ?? s.name;
       ctx.globalAlpha = alpha;
       ctx.fillStyle = s.color;
       ctx.fillRect(x, H - 34, 16, 16);
@@ -258,13 +265,13 @@ export async function wall(root: HTMLElement): Promise<void> {
 
   function draw(frame: number): number {
     const began = performance.now(), t = frame / FPS, s = t - t0;
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
     if (t < tTitle) {
       // the poster: everyone, waiting
       drawWall(-10, 1, 0.62);
       const [song, ...under] = cfg.title.lines;
-      lines([song, ...under], [150, 44, 30], H / 2 - 10, "#fff", 0.72);
+      if (song) lines([song, ...under], [150, 44, 30], H / 2 - 10, INK, 0.72);
     } else if (t < t0 - cfg.settle) {
       // a take, whole, as it was recorded
       const k = coldAt.reduce((at, a, i) => (t >= a ? i : at), 0), c = cfg.cold[k], u = t - coldAt[k];
@@ -272,18 +279,27 @@ export async function wall(root: HTMLElement): Promise<void> {
         const f = Math.min(c.frames - 1, Math.floor(u * FPS)), sheet = sheets[k], w = sheet.width / c.cols;
         ctx.drawImage(sheet, (f % c.cols) * w, Math.floor(f / c.cols) * w, w, w, (W - H) / 2, 0, H, H);
         const left = (W - H) / 2;
-        ctx.fillStyle = "#fff";
+        ctx.fillStyle = INK;
         ctx.textAlign = "center";
         ctx.font = font(170);
         ctx.fillText(c.name, left / 2, H / 2);
         ctx.font = font(38);
-        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fillStyle = SOFT;
         ctx.fillText(`${c.hz.toFixed(0)} HZ`, left / 2, H / 2 + 70);
         ctx.fillText(c.kind.toUpperCase(), left / 2, H / 2 + 126);
         ctx.fillText(`TAKE ${k + 1}`, W - left / 2, H / 2 - 14);
         ctx.fillText(`OF ${tiles.length}`, W - left / 2, H / 2 + 42);
         ctx.textAlign = "left";
-        lines(c.text.split("\n"), [42], H - 90, "#fff", 0.6);
+        if (c.text) {
+          // over the picture itself: always light on a dark band
+          ctx.fillStyle = "rgba(0,0,0,0.6)";
+          ctx.fillRect((W - H) / 2, H - 140, H, 100);
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          ctx.font = font(42);
+          ctx.fillText(c.text, W / 2, H - 76, H - 60);
+          ctx.textAlign = "left";
+        }
       }
     } else if (s < cfg.length) {
       drawWall(s, s < 0 ? ease((s + cfg.settle) / cfg.settle) : 1);
@@ -292,16 +308,16 @@ export async function wall(root: HTMLElement): Promise<void> {
       const said = cfg.captions.find(([a, b]) => s >= a && s < b);
       if (one) {
         const sec = cfg.sections[one[2]];
-        lines([sec.alone ?? `JUST ${(sec.label ?? sec.name).toUpperCase()}. STILL ME.`], [44], H - 96, sec.color, 0);
+        if (sec.alone) lines([sec.alone], [44], H - 96, sec.color, 0);
       } else if (said) {
         const fade = Math.min(ease((s - said[0]) / 0.3), ease((said[1] - s) / 0.3));
         ctx.globalAlpha = fade;
         // on the wall the words go under it; over the falling notes, above them
-        lines(said[2].split("\n"), [40], k > 0.5 ? TOP + 90 : H - 96, "#fff", k > 0.5 ? 0.7 : 0);
+        lines(said[2].split("\n"), [40], k > 0.5 ? TOP + 90 : H - 96, INK, k > 0.5 ? 0.7 : 0);
         ctx.globalAlpha = 1;
       }
     } else {
-      lines(cfg.end.lines, [110, 44, 32, 24], H / 2, "#ffb340", 0);
+      if (cfg.end.lines.length) lines(cfg.end.lines, [110, 44, 32, 24], H / 2, cfg.look.accent, 0);
     }
     return performance.now() - began;
   }

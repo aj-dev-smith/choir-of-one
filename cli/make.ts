@@ -4,8 +4,9 @@
  *
  *   bun cli/make.ts --song song.mp3 [--project projects/default] [--title "..."] [--credit '"Song" by Artist']
  *                   [--start 0] [--length 90] [--stems] [--reach] [--skip sung-80,sung-79]
- *                   [--picture sung-78=sung-77,...] [--stand-in sung-41] [--no-captions] [--sound-only] [--json]
+ *                   [--picture sung-78=sung-77,...] [--stand-in sung-41] [--sound-only] [--json]
  *
+ * The words on the film and its colours are in <project>/script.json (bun cli/script.ts writes and checks it).
  * Progress goes to stderr, a line at a time. With --json every line (stdout) is one JSON object:
  * {"progress": {step, detail, fraction?}}, then {"done": {file, notes}} or {"error": "..."}; exit code 1 on error.
  */
@@ -25,7 +26,7 @@ const list = (s: string | undefined) => (s ?? "").split(",").filter(Boolean);
 const json = flag("json"), song = opt("song");
 const say = (o: object) => console.log(JSON.stringify(o));
 if (!song || flag("help")) {
-  console.error("usage: bun cli/make.ts --song <file> [--project projects/default] [--title T] [--credit C] [--start s] [--length s]\n       [--stems] [--reach] [--skip id,id] [--picture id=id,...] [--stand-in id] [--no-captions] [--sound-only] [--json]");
+  console.error("usage: bun cli/make.ts --song <file> [--project projects/default] [--title T] [--credit C] [--start s] [--length s]\n       [--stems] [--reach] [--skip id,id] [--picture id=id,...] [--stand-in id] [--sound-only] [--json]");
   process.exit(song ? 0 : 1);
 }
 const o: MakeOptions = {
@@ -40,7 +41,6 @@ const o: MakeOptions = {
   skip: list(opt("skip")),
   pictures: Object.fromEntries(list(opt("picture")).map((p) => p.split("=") as [string, string])),
   standIn: opt("stand-in"),
-  noCaptions: flag("no-captions"),
   soundOnly: flag("sound-only"),
 };
 if (argv.length) {

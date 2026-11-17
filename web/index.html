@@ -57,6 +57,33 @@
       .check.off { color: var(--faint); cursor: not-allowed; }
       .hint { color: var(--dim); font-size: 14px; margin: 2px 0 0 28px; }
       .hint code { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; font-size: 13px; }
+      /* the words-and-look panel: closed until wanted */
+      .script { margin-top: 28px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+      .script summary { cursor: pointer; padding: 14px 18px; font-weight: 650; list-style-position: inside; }
+      .script[open] summary { border-bottom: 1px solid var(--line); }
+      .script > .hint { margin: 14px 18px 0; line-height: 1.7; }
+      .script h3 { font-size: 15px; margin: 22px 0 2px; }
+      .script .when { color: var(--dim); font-size: 13px; margin: 0 0 8px; }
+      #script-fields { padding: 0 18px; }
+      #script-fields .fields { margin: 8px 0 0; gap: 10px 16px; }
+      #script-fields .fields input:not([type="color"]), #script-fields select { padding: 7px 10px; font-size: 15px; }
+      /* short labels sit beside their field where there is room */
+      @media (min-width: 601px) {
+        #script-fields .inline label { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 12px; }
+      }
+      #script-fields .fields input, #script-fields select { background: var(--bg); }
+      #script-fields select { border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: 16px; color: var(--text); }
+      #script-fields input:disabled { opacity: 0.5; }
+      .colour { display: flex; align-items: center; gap: 10px; }
+      .colour input[type="color"] { width: 48px; height: 38px; padding: 2px; border-radius: 8px; cursor: pointer; flex: none; }
+      .colour code { color: var(--soft); font-size: 14px; }
+      .script button.k { background: var(--bg); }
+      .script button.k:hover { border-color: var(--dim); }
+      .script button.k.sure { border-color: var(--bad); color: var(--bad); }
+      .script-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 20px 18px 18px; }
+      .saved { color: var(--dim); font-size: 14px; }
+      .saved.bad { color: var(--bad); }
+      .saved.good { color: var(--good); }
       .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
 
       .summary { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 20px 0 0; }
@@ -112,6 +139,19 @@
         <label class="check" id="stems-row"><input type="checkbox" id="stems" /><span>Split the song into instruments (slower, better)</span></label>
         <p class="hint" id="stems-hint" hidden>Not available here: put <code>uv</code> or <code>demucs</code> on the PATH and restart the app.</p>
         <label class="check"><input type="checkbox" id="reach" /><span>Also play notes I couldn't reach, pitch-shifted from my nearest take</span></label>
+        <details class="script" id="script">
+          <summary>Words and look <span class="opt">(optional)</span></summary>
+          <p class="hint">
+            Every word on the film, and its colours. In any line, <code>{N}</code> is how many notes there are, <code>{SUNG}</code> and
+            <code>{WHISTLED}</code> how many of each, <code>{TITLE}</code> and <code>{CREDIT}</code> the title and credit above, and
+            <code>{PART}</code> (in the solo line) the instrument heard alone. An empty line is left off the film.
+          </p>
+          <div id="script-fields"></div>
+          <div class="script-foot">
+            <button type="button" class="k" id="script-reset">Back to the defaults</button>
+            <span class="saved" id="script-status" role="status"></span>
+          </div>
+        </details>
         <div class="actions"><button type="button" class="main" id="to-make">Next: make the film</button></div>
       </section>
 

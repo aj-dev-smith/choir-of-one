@@ -17,22 +17,27 @@ browser.** Everything else you can do yourself.
    drive the recorder with a synthetic voice unless you are testing the recorder itself.
 4. Ask for the song file if you do not have one (any audio format). Do not fetch a song from the internet
    on your own initiative: it is theirs to supply.
-5. Check the sound first; it takes seconds:
+5. Make it theirs. The words on the film and its colours are in `projects/default/script.json`
+   (`bun cli/script.ts` writes it with the defaults and prints it; README, "Make it yours", says what each
+   field is). The defaults are deliberately plain. Ask the person what they want it to say, or draft a title,
+   captions and an end line in their voice and show them before you render; then edit the file and run
+   `bun cli/script.ts` again to check it. Do not copy another person's film word for word.
+6. Check the sound first; it takes seconds:
    `bun cli/make.ts --song <file> --sound-only --json`
    Read the `notes` in the result: they say how many notes there are, which pitches were out of reach, and
-   which takes may squeal. Play `work/mix.wav` to the person if they want to hear it before the film.
-6. Make the film: `bun cli/make.ts --song <file> --title "<title>" --stems --json`
+   which takes may squeal (offer to `--skip` those if the person hears it). Play `work/mix.wav` to the person if they want to hear it before the film.
+7. Make the film: `bun cli/make.ts --song <file> --title "<title>" --stems --json`
    (drop `--stems` if the doctor said the splitter is not available). It takes about five minutes for 90
    seconds of song; with `--stems` the first run also downloads about 2 GB. The result line is
    `{"done": {"file": ".../film.mp4", "notes": [...]}}`. On failure the last line is `{"error": "..."}` and
    the exit code is 1; the message says what to do.
-7. Tell the person where the film is and pass on the notes. You cannot judge the sound: say so, and let them
+8. Tell the person where the film is and pass on the notes. You cannot judge the sound: say so, and let them
    listen.
 
 Things people ask for next, and the flag for each: a different part of the song (`--start`, `--length`); a
 take that sounds bad (`--skip sung-80`); a take that looks bad (`--picture sung-78=sung-77`); takes where they
 leaned out of shot (`--stand-in <a take where part of them is visible>`); notes they could not reach
-(`--reach`); the words on screen off (`--no-captions`).
+(`--reach`); different words or colours (edit `script.json` and make it again).
 
 ## Layout
 
@@ -41,10 +46,12 @@ server.ts          the app's server: serves web/, saves takes and the song, runs
 web/               the app (three steps: record, song, make); web/record.ts is the recorder
 cli/make.ts        make() from the command line
 cli/doctor.ts      what is installed, what is missing
+cli/script.ts      write, check and print a project's script.json
 src/make.ts        the whole process, top to bottom; start reading here
 src/transcribe.ts  a song as notes on piano keys
 src/stems.ts       the song split into instruments (optional, Demucs)
-src/arrange.ts     the film's shape: voices coming in, solos, the keyboard stretch, the words
+src/arrange.ts     the film's shape: voices coming in, solos, the keyboard stretch, when words show
+src/script.ts      the words and colours: script.json, its defaults and its checks
 src/voices.ts      takes -> loops -> sound
 src/faces.ts       takes -> pictures, framed on the face (faces.swift: macOS Vision)
 src/film/wall.ts   the film itself, drawn in a browser one frame at a time

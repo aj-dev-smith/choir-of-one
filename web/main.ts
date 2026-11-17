@@ -8,6 +8,7 @@
 import type { JobView, MakeRequest, ProjectView } from "./api.ts";
 import { C, FACE } from "./look.ts";
 import { Left, name, record } from "./record.ts";
+import { scriptPanel } from "./script.ts";
 
 const project = new URLSearchParams(location.search).get("project") || "default";
 const api = `/api/projects/${encodeURIComponent(project)}`;
@@ -37,6 +38,7 @@ let recording: AbortController | null = null;
 
 function show(step: Step) {
   // leaving the recorder lets the camera and microphone go; coming back starts it again
+  if (step !== "song") words.flush();
   if (step !== "record" && recording) {
     recording.abort();
     recording = null;
@@ -78,6 +80,9 @@ function startRecorder() {
 }
 
 // ---- 2. the song
+
+/** the words on the film and its colours: the panel at the foot of the step */
+const words = scriptPanel(api, $);
 
 interface SongForm {
   title: string;
@@ -166,6 +171,7 @@ async function songStep() {
   if (!form.title && v?.song) form.title = titleFrom(v.song.name);
   fillForm();
   showSong(v?.song ?? null);
+  await words.load();
 }
 
 /** sends the song up, showing how far it has got (fetch can't tell how much is sent) */

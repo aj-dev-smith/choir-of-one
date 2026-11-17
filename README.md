@@ -39,6 +39,37 @@ bun run start      # then open http://127.0.0.1:4173 in Chrome
 The more notes you record, the more of the song comes through. The high whistled notes carry most of the
 consonants: without them you get the tune but not the words.
 
+## Make it yours
+
+Every word on the film, and its colours, are in one file in the project: `script.json`. It appears with the
+defaults the first time you make a film (or run `bun cli/script.ts`), and the app's Song step has the same
+fields under "Words and look". Change them. A film that says what everyone else's says is no fun.
+
+```json
+{
+  "title": ["{TITLE}", "{N} notes. One voice."],
+  "opening": { "takes": 3, "ids": [], "lines": ["", "", ""] },
+  "captions": {
+    "start": "Each tile is one note I recorded.",
+    "words": "Nobody sings the words. You hear them anyway.",
+    "band": "", "keys": "", "after": ""
+  },
+  "solo": "{PART}",
+  "end": ["{N} notes. No song was played.", "{CREDIT}"],
+  "accent": "#ffb340",
+  "background": "#000000"
+}
+```
+
+- `title` is the first frame, which is what a feed shows before the film plays. `end` is the last.
+- `opening` is the few takes shown whole before the song: how many (0 starts straight on the wall), which
+  ones (`"ids": ["sung-55"]`; empty lets the film choose), and a line under each.
+- `captions` show at five moments: as the song starts, once the words can be heard, before the instruments
+  are heard alone, during the keyboard stretch, and after it. `solo` shows while one instrument is alone.
+- `{N}` is how many notes you have, `{SUNG}` and `{WHISTLED}` how many of each, `{TITLE}` and `{CREDIT}`
+  what you gave, `{PART}` the instrument. An empty line is left off.
+- `accent` colours the vocals and the end card; `background` can be dark or light.
+
 ## From the command line
 
 Recording needs a person in front of a browser. Everything after that can be scripted:
@@ -58,7 +89,6 @@ bun run make --song song.mp3 --title "My Song" --stems
 | `--skip sung-80,...` | leave takes out |
 | `--picture sung-78=sung-77,...` | show one take with another's picture (its sound stays its own) |
 | `--stand-in sung-41` | the picture shown for takes where you leaned out of shot |
-| `--no-captions` | leave the explaining words off the film |
 | `--sound-only` | stop at the sound (`work/mix.wav`), which takes seconds, to check it before drawing the film |
 | `--json` | progress and the result as one JSON object per line |
 
@@ -75,12 +105,13 @@ A project is a folder under `projects/`: `takes/` (your clips and `takes.json`),
 3. **Your brain does the rest.** A few dozen steady tones following the peaks of a voice's spectrum are
    enough for speech to be understood. That is the same effect as sine-wave speech.
 
-Two things are done so that it is pleasant to listen to. Each take is made as loud *to the ear* as the
-others, since a high note is far more piercing than a low one of the same size. And a sung take that came out
-as mostly a squeal gives way to your whistle of the same note, if you recorded one.
+One thing is done so that it is pleasant to listen to: each take is made as loud *to the ear* as the
+others, since a high note is far more piercing than a low one of the same size. If a note sung at the very
+top of your range still squeals, the result says which take it is, and `--skip` leaves it out.
 
 With `--stems` the song is first split into vocals, drums, bass and everything else, and each is turned into
-notes separately, so the film can show which of you is being the drums.
+notes separately, so the film can show which of you is being the drums. It works on any song; a part the
+song does not have (no drums, no singer) is left out.
 
 ## Working on it
 

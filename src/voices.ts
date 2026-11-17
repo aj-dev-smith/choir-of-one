@@ -30,7 +30,7 @@ export interface Voices {
   takes: Record<string, Take>;
   /** each usable take's held stretch, clear of the note's start and end */
   held: Map<string, Float32Array>;
-  /** sung takes whose sound is mostly a squeal (see `strained` below) */
+  /** sung takes whose sound is mostly above 1.5 kHz, which may squeal (see `strained` below) */
   strained: Set<string>;
   /** what a person should know about takes left out or doubted */
   notes: string[];
@@ -39,7 +39,7 @@ export interface Voices {
 /**
  * Is this sung take a squeal? A voice puts much of a note into its harmonics; near the top of a range
  * nearly all of it can land between 1.5 and 5 kHz, where hearing is keenest. Such a take is real, but in
- * a choir it pierces, and a whistle of the same pitch (if there is one) does the job better.
+ * a choir it can pierce. Nothing is done about it here but to say so: whether to leave it out is the person's call.
  */
 function strained(x: Float32Array): boolean {
   const N = 8192, fft = new FFT(N), win = hann(N), re = new Float64Array(N), im = new Float64Array(N);
@@ -87,14 +87,11 @@ export async function loadVoices(dir: string, skip: string[] = [], on: (done: nu
   return v;
 }
 
-/**
- * Whose clip plays a key: the person's own take of it, else their nearest. Sung comes before whistled,
- * except that a strained sung take gives way to a whistle of the same pitch.
- */
+/** Whose clip plays a key: the person's own take of it, else their nearest. Sung comes before whistled. */
 export function clipFor(v: Voices, midi: number): string {
   let best = "", far = Infinity;
   for (const id of v.held.keys()) {
-    const d = Math.abs(midiOf(id) - midi) + (isSung(id) ? 0 : 0.1) + (v.strained.has(id) ? 0.5 : 0);
+    const d = Math.abs(midiOf(id) - midi) + (isSung(id) ? 0 : 0.1);
     if (d < far) [best, far] = [id, d];
   }
   return best;
