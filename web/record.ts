@@ -24,7 +24,8 @@
  * { takes: { "sung-57": { file, from, to, hz, cents, rms, peak, rest } }, skipped: [ids] },
  * where { from, to } (s) is the held pitch in its clip, rms and peak its level, rest the stillness
  * before it. The page starts from the project's takes.json, so a session carries on where the last
- * one stopped; a copy of takes.json is also kept in localStorage. A save that fails is said, and
+ * one stopped, or, with R on the welcome screen, first asks the skipped notes again; a copy of
+ * takes.json is also kept in localStorage. A save that fails is said, and
  * can be tried again: the take is held until it is saved or the person chooses to sing it again.
  *
  * `?from=52&whistle=84` set where each starts; `?only=60` asks for one pitch (`&kind=whistle` for
@@ -499,6 +500,7 @@ export async function record(root: HTMLElement, { project, signal, next }: Recor
   // a session picks up where the project's last one stopped
   const takes: Record<string, Take> = {};
   const skipped = new Set<string>();
+  let retry = false;
   {
     say(["LOOKING FOR YOUR TAKES..."]);
     const old = await load();
@@ -515,10 +517,18 @@ export async function record(root: HTMLElement, { project, signal, next }: Recor
         "WELCOME BACK",
         `THIS PROJECT HAS ${Object.keys(takes).length} CLIP${Object.keys(takes).length === 1 ? "" : "S"} AND ${skipped.size} SKIPPED NOTE${skipped.size === 1 ? "" : "S"}.`,
         missing ? `${missing} CLIPS IN takes.json ARE MISSING FROM THE PROJECT: THEY WILL BE ASKED AGAIN.` : "THE NOTES DONE ARE NOT ASKED AGAIN (B GOES BACK TO ONE).",
-        "PRESS ANY KEY TO CARRY ON WHERE YOU STOPPED.",
+        skipped.size ? "ENTER CARRIES ON WHERE YOU STOPPED. R ASKS THE SKIPPED NOTES AGAIN." : "PRESS ANY KEY TO CARRY ON WHERE YOU STOPPED.",
       ]);
       state.screen = "welcome back";
-      await anyKey("Carry on");
+      if (skipped.size) {
+        // B only reaches one note back, and once every note is kept or skipped there is nothing to go
+        // back from: without this a skip is for good, and a few early skips end a whole range
+        buttons([{ label: "Carry on", key: "enter", cap: "Enter", main: true }, { label: `Ask the ${skipped.size} skipped again`, key: "r", cap: "R" }]);
+        if ((await keyOf(["enter", "r"])) === "r") {
+          skipped.clear();
+          retry = true;
+        }
+      } else await anyKey("Carry on");
     }
   }
   state.takes = takes;
@@ -532,6 +542,8 @@ export async function record(root: HTMLElement, { project, signal, next }: Recor
     }
     await save("takes.json", new Blob([json], { type: "application/json" }), false);
   };
+  // saved now, so leaving before the next note does not bring the skips back
+  if (retry) await keep();
 
   // ---- the strip of keys: every pitch asked for, kept, skipped, now and to come
   function strip(asks: Ask[], now: string, on = NaN) {
